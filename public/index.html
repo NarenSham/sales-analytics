@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Data Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="/js/d3Renderer.js"></script>
+    <style>
+        /* ... Keep existing styles ... */
+        .slide {
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .slide-title {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .slide-subtitle {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .error-message {
+            color: red;
+            padding: 10px;
+            margin: 10px 0;
+            background: #fff3f3;
+            border-radius: 4px;
+        }
+        #visualization {
+            width: 800px;
+            height: 400px;
+            margin: 20px auto;
+            background: white;
+        }
+        svg {
+            background: white;
+        }
+        .title {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .explanation {
+            margin: 20px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            white-space: pre-line;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <input type="text" id="question" placeholder="Ask a question about sales data...">
+        <button onclick="analyzeData()">Analyze</button>
+        <div id="loading" style="display: none;">Loading...</div>
+        <div id="error" style="display: none; color: red;"></div>
+        <h2 id="title" class="title"></h2>
+        <div id="subtitle" class="subtitle"></div>
+        <div id="visualization"></div>
+        <div id="explanation" class="explanation"></div>
+    </div>
+
+    <script>
+        async function analyzeData() {
+            const questionInput = document.getElementById('question');
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const titleDiv = document.getElementById('title');
+            const subtitleDiv = document.getElementById('subtitle');
+            const explanationDiv = document.getElementById('explanation');
+            const question = questionInput.value.trim();
+
+            if (!question) {
+                errorDiv.textContent = 'Please enter a question';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                // Clear previous state
+                errorDiv.style.display = 'none';
+                loadingDiv.style.display = 'block';
+                titleDiv.textContent = '';
+                subtitleDiv.textContent = '';
+                explanationDiv.textContent = '';
+                document.getElementById('visualization').innerHTML = '';
+
+                // Make API request
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+
+                const result = await response.json();
+                console.log('Server response:', result); // Debug log
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Analysis failed');
+                }
+
+                // Update UI with results
+                if (result.data) {
+                    titleDiv.textContent = result.data.title || 'Sales Analysis';
+                    subtitleDiv.textContent = result.data.subtitle || '';
+                    explanationDiv.textContent = result.data.explanation || '';
+
+                    if (result.data.visualization) {
+                        const visDiv = document.getElementById('visualization');
+                        const width = visDiv.clientWidth;
+                        const height = visDiv.clientHeight;
+
+                        // Create SVG element
+                        const svg = d3.select('#visualization')
+                            .append('svg')
+                            .attr('width', width)
+                            .attr('height', height);
+
+                        // Render visualization
+                        renderD3Visualization(svg, result.data.visualization, width, height);
+                    } else {
+                        throw new Error('No visualization data in response');
+                    }
+                } else {
+                    throw new Error('Invalid response format');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                errorDiv.textContent = error.message;
+                errorDiv.style.display = 'block';
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
